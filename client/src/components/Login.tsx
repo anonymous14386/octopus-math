@@ -36,8 +36,8 @@ export default function Login({ onSuccess }: LoginProps) {
   }
 
   return (
-    <div className="min-h-screen bg-[#0d1117] flex items-center justify-center px-4">
-      <div className="bg-[#161b22] border border-[#30363d] rounded-xl p-10 w-full max-w-sm shadow-2xl">
+    <div className="min-h-screen bg-gray-950 flex items-center justify-center px-4">
+      <div className="bg-gray-900 border border-gray-800 rounded-xl p-10 w-full max-w-sm shadow-2xl">
         {/* Logo */}
         <div className="flex justify-center mb-5">
           <svg className="w-12 h-12 fill-blue-400" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -45,20 +45,20 @@ export default function Login({ onSuccess }: LoginProps) {
           </svg>
         </div>
 
-        <h1 className="text-xl font-semibold text-[#f0f6fc] text-center mb-1">Octopus Math</h1>
-        <p className="text-sm text-[#8b949e] text-center mb-7">
+        <h1 className="text-xl font-semibold text-gray-100 text-center mb-1">🧮 Octopus Math</h1>
+        <p className="text-sm text-gray-400 text-center mb-7">
           Sign in with your OctopusTechnology account
         </p>
 
         {error && (
-          <div className="bg-[#3d1c1c] border border-[#f85149] text-[#f85149] text-sm rounded-md px-3 py-2 mb-4">
+          <div className="bg-red-900/30 border border-red-500 text-red-400 text-sm rounded-md px-3 py-2 mb-4">
             {error}
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div>
-            <label className="block text-sm text-[#8b949e] mb-1" htmlFor="username">
+            <label className="block text-sm text-gray-400 mb-1" htmlFor="username">
               Username
             </label>
             <input
@@ -68,12 +68,12 @@ export default function Login({ onSuccess }: LoginProps) {
               required
               value={username}
               onChange={e => setUsername(e.target.value)}
-              className="w-full bg-[#0d1117] border border-[#30363d] rounded-md px-3 py-2 text-[#c9d1d9] text-sm outline-none focus:border-blue-500 transition-colors"
+              className="w-full bg-gray-950 border border-gray-800 rounded-md px-3 py-2 text-gray-200 text-sm outline-none focus:border-blue-500 transition-colors"
             />
           </div>
 
           <div>
-            <label className="block text-sm text-[#8b949e] mb-1" htmlFor="password">
+            <label className="block text-sm text-gray-400 mb-1" htmlFor="password">
               Password
             </label>
             <input
@@ -83,7 +83,7 @@ export default function Login({ onSuccess }: LoginProps) {
               required
               value={password}
               onChange={e => setPassword(e.target.value)}
-              className="w-full bg-[#0d1117] border border-[#30363d] rounded-md px-3 py-2 text-[#c9d1d9] text-sm outline-none focus:border-blue-500 transition-colors"
+              className="w-full bg-gray-950 border border-gray-800 rounded-md px-3 py-2 text-gray-200 text-sm outline-none focus:border-blue-500 transition-colors"
             />
           </div>
 

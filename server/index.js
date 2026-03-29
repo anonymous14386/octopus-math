@@ -6,8 +6,8 @@ const { initDb } = require('./database');
 
 const app = express();
 const PORT = process.env.PORT || 3011;
-const AUTH_URL = process.env.AUTH_SERVICE_URL || 'http://octopus-auth:3002';
-const CORTEX_URL = process.env.CORTEX_URL || 'http://octopus-cortex:3010';
+const AUTH_INTERNAL_URL = process.env.AUTH_SERVICE_URL || 'http://octopus-auth:3002';
+const AUTH_EXTERNAL_URL = 'https://auth.octopustechnology.net';
 
 app.set('trust proxy', true);
 
@@ -21,18 +21,11 @@ app.use(session({
   cookie: { secure: false, maxAge: 24 * 60 * 60 * 1000 },
 }));
 
-async function tailscaleOnly(req, res, next) {
-  const forwarded = req.headers['x-forwarded-for'];
-  const ip = (forwarded ? forwarded.split(',')[0].trim() : req.ip || '').replace('::ffff:', '');
+async function callAuthService(endpoint, data) {
   try {
-    const r = await axios.get(`${CORTEX_URL}/api/check-ip`, {
-      headers: { 'x-forwarded-for': ip },
-      timeout: 2000,
-    });
-    if (!r.data.allowed) return res.status(403).json({ error: 'Access denied. Request access via Discord.' });
-    next();
+    return await axios.post(`${AUTH_INTERNAL_URL}${endpoint}`, data, { timeout: 3000 });
   } catch {
-    return res.status(403).json({ error: 'IP check unavailable.' });
+    return await axios.post(`${AUTH_EXTERNAL_URL}${endpoint}`, data, { timeout: 5000 });
   }
 }
 
@@ -46,15 +39,15 @@ function requireLogin(req, res, next) {
 app.get('/health', (_req, res) => res.json({ ok: true, service: 'octopus-math' }));
 
 // Login page
-app.get('/login', tailscaleOnly, (req, res) => {
+app.get('/login', (req, res) => {
   if (req.session && req.session.user) return res.redirect('/');
   res.sendFile(path.join(__dirname, 'login.html'));
 });
 
-app.post('/login', tailscaleOnly, async (req, res) => {
+app.post('/login', async (req, res) => {
   const { username, password } = req.body;
   try {
-    const r = await axios.post(`${AUTH_URL}/api/auth/login`, { username, password }, { timeout: 3000 });
+    const r = await callAuthService('/api/auth/login', { username, password });
     if (r.data.success) {
       req.session.user = { username };
       return res.json({ ok: true });
@@ -70,7 +63,7 @@ app.post('/logout', (req, res) => {
 });
 
 // API: current user info (used by client to check auth)
-app.get('/api/me', tailscaleOnly, requireLogin, (req, res) => {
+app.get('/api/me', requireLogin, (req, res) => {
   res.json({ username: req.session.user.username });
 });
 
@@ -79,16 +72,16 @@ const uploadRouter = require('./routes/upload');
 const studyRouter = require('./routes/study');
 const quizRouter = require('./routes/quiz');
 
-app.use('/api/upload', tailscaleOnly, requireLogin, uploadRouter);
-app.use('/api/study', tailscaleOnly, requireLogin, studyRouter);
-app.use('/api/quiz', tailscaleOnly, requireLogin, quizRouter);
+app.use('/api/upload', requireLogin, uploadRouter);
+app.use('/api/study', requireLogin, studyRouter);
+app.use('/api/quiz', requireLogin, quizRouter);
 
 // Serve React client in production
 const clientDist = path.join(__dirname, '../client/dist');
-app.use(tailscaleOnly, express.static(clientDist));
+app.use(express.static(clientDist));
 
 // SPA fallback — serve index.html for any non-API route
-app.get('*', tailscaleOnly, requireLogin, (_req, res) => {
+app.get('*', requireLogin, (_req, res) => {
   res.sendFile(path.join(clientDist, 'index.html'));
 });
 

@@ -78,7 +78,7 @@ export default function App() {
     <div className="min-h-screen bg-gray-950 text-gray-200">
       {/* Nav bar */}
       <nav className="bg-gray-900 border-b border-gray-800 px-6 py-3 flex items-center gap-6">
-        <span className="font-bold text-blue-400 text-lg tracking-wide">Octopus Math</span>
+        <span className="font-bold text-blue-400 text-lg tracking-wide">🧮 Octopus Math</span>
         <div className="flex gap-1">
           {navItems.map(item => (
             <button

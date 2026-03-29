@@ -137,7 +137,7 @@ export default function QuizMode({ sessionId, onDone }: QuizModeProps) {
 
         {/* Score card */}
         <div className="bg-gray-900 border border-gray-800 rounded-xl p-8 text-center mb-6">
-          <div className="text-6xl font-bold mb-2" style={{ color: pct >= 70 ? '#60a5fa' : pct >= 50 ? '#facc15' : '#f87171' }}>
+          <div className="text-6xl font-bold mb-2" style={{ color: pct >= 70 ? '#2ecc71' : pct >= 50 ? '#facc15' : '#f87171' }}>
             {pct}%
           </div>
           <p className="text-gray-400 text-lg">{totalCorrect} / {total} correct</p>
@@ -161,7 +161,7 @@ export default function QuizMode({ sessionId, onDone }: QuizModeProps) {
                         className="h-full rounded-full transition-all"
                         style={{
                           width: `${topicPct}%`,
-                          backgroundColor: topicPct >= 70 ? '#60a5fa' : topicPct >= 50 ? '#facc15' : '#f87171',
+                          backgroundColor: topicPct >= 70 ? '#2ecc71' : topicPct >= 50 ? '#facc15' : '#f87171',
                         }}
                       />
                     </div>
