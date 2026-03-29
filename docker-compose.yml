@@ -8,7 +8,8 @@ services:
     volumes:
       - math_data:/app/data
     environment:
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - MATH_MODEL=${MATH_MODEL:-claude-sonnet-4-6}
       - AUTH_SERVICE_URL=${AUTH_SERVICE_URL:-http://octopus-auth:3002}
       - SESSION_SECRET=${SESSION_SECRET}
       - PORT=3011

@@ -1,11 +1,22 @@
 const express = require('express');
 const multer = require('multer');
 const pdfParse = require('pdf-parse');
+const { createWorker } = require('tesseract.js');
 const { StudySession } = require('../database');
 
 const router = express.Router();
 const storage = multer.memoryStorage();
 const upload = multer({ storage, limits: { fileSize: 50 * 1024 * 1024 } });
+
+async function ocrImage(buffer) {
+  const worker = await createWorker('eng', 1, { logger: () => {} });
+  try {
+    const { data: { text } } = await worker.recognize(buffer);
+    return text;
+  } finally {
+    await worker.terminate();
+  }
+}
 
 async function extractText(file) {
   const mimetype = file.mimetype;
@@ -21,7 +32,10 @@ async function extractText(file) {
   }
 
   if (['image/jpeg', 'image/png', 'image/jpg'].includes(mimetype) || ['jpg', 'jpeg', 'png'].includes(ext)) {
-    return `[Image file: ${file.originalname}] Image OCR not yet implemented, please paste text instead.`;
+    console.log(`[ocr] processing ${file.originalname}...`);
+    const text = await ocrImage(file.buffer);
+    console.log(`[ocr] extracted ${text.length} chars from ${file.originalname}`);
+    return text;
   }
 
   return file.buffer.toString('utf-8');

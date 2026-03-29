@@ -1,9 +1,10 @@
 const express = require('express');
-const OpenAI = require('openai');
+const Anthropic = require('@anthropic-ai/sdk');
 const { StudySession, Problem } = require('../database');
 
 const router = express.Router();
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+const MODEL = process.env.MATH_MODEL || 'claude-sonnet-4-6';
 
 const LESSON_PROMPT = `You are an expert math tutor. Given the following course material from a math class, analyze and generate structured study content.
 
@@ -48,20 +49,17 @@ router.post('/:sessionId/generate', async (req, res) => {
   try {
     await session.update({ status: 'processing' });
 
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4o',
-      response_format: { type: 'json_object' },
-      messages: [
-        {
-          role: 'user',
-          content: LESSON_PROMPT + session.rawText,
-        },
-      ],
+    const message = await anthropic.messages.create({
+      model: MODEL,
       max_tokens: 4096,
+      messages: [{ role: 'user', content: LESSON_PROMPT + session.rawText }],
     });
 
-    const content = completion.choices[0].message.content;
-    const parsed = JSON.parse(content);
+    const raw = message.content[0].text;
+    // Extract JSON object from response (Claude may wrap it in markdown)
+    const jsonMatch = raw.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error('No JSON found in model response');
+    const parsed = JSON.parse(jsonMatch[0]);
 
     const topics = parsed.topics || [];
     const subject = parsed.subject || 'Precalculus';
@@ -114,7 +112,7 @@ router.get('/:sessionId', async (req, res) => {
 });
 
 // GET /api/study
-router.get('/', async (req, res) => {
+router.get('/', async (_req, res) => {
   const sessions = await StudySession.findAll({ order: [['createdAt', 'DESC']] });
   const result = sessions.map(s => {
     const data = s.toJSON();
