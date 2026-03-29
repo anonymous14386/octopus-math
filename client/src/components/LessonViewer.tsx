@@ -160,8 +160,8 @@ export default function LessonViewer({ topic }: LessonViewerProps) {
               ))}
             </ol>
             {topic.workedExample.answer && (
-              <div className="bg-green-900/20 border border-green-800 rounded-lg px-4 py-2 mt-3">
-                <span className="text-green-400 font-semibold text-sm">Answer: </span>
+              <div className="bg-blue-900/20 border border-blue-800 rounded-lg px-4 py-2 mt-3">
+                <span className="text-blue-400 font-semibold text-sm">Answer: </span>
                 <span className="text-gray-200 text-sm">{renderMath(topic.workedExample.answer)}</span>
               </div>
             )}

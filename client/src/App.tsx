@@ -160,7 +160,7 @@ export default function App() {
                           </button>
                           <button
                             onClick={() => navigate('quiz', session.id, undefined, session)}
-                            className="px-3 py-1.5 text-sm bg-green-700 hover:bg-green-600 rounded font-medium transition-colors"
+                            className="px-3 py-1.5 text-sm bg-indigo-600 hover:bg-indigo-500 rounded font-medium transition-colors"
                           >
                             Quiz
                           </button>

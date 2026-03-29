@@ -90,7 +90,7 @@ export default function Login({ onSuccess }: LoginProps) {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-[#238636] hover:bg-[#2ea043] disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-semibold rounded-md py-2 text-sm transition-colors"
+            className="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-semibold rounded-md py-2 text-sm transition-colors"
           >
             {loading ? 'Signing in…' : 'Sign in'}
           </button>

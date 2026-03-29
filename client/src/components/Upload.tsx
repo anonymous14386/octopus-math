@@ -37,6 +37,7 @@ export default function Upload({ onSessionCreated }: UploadProps) {
     accept: {
       'application/pdf': ['.pdf'],
       'text/plain': ['.txt'],
+      'text/html': ['.html', '.htm'],
       'image/jpeg': ['.jpg', '.jpeg'],
       'image/png': ['.png'],
     },
@@ -137,7 +138,7 @@ export default function Upload({ onSessionCreated }: UploadProps) {
               ) : (
                 <>
                   <p className="text-gray-300 font-medium">Drag & drop files here</p>
-                  <p className="text-gray-500 text-sm mt-1">or click to select — PDF, TXT, JPG, PNG</p>
+                  <p className="text-gray-500 text-sm mt-1">or click to select — PDF, TXT, HTML, JPG, PNG</p>
                 </>
               )}
             </div>
@@ -184,18 +185,18 @@ export default function Upload({ onSessionCreated }: UploadProps) {
         </div>
       ) : uploadState === 'generating' ? (
         <div className="text-center py-16">
-          <div className="w-8 h-8 border-2 border-green-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
           <p className="text-gray-400">Generating your study guide with AI…</p>
           <p className="text-gray-600 text-sm mt-2">This may take up to 30 seconds.</p>
         </div>
       ) : (
         /* uploadState === 'done' */
         <div>
-          <div className="bg-green-900/20 border border-green-700 rounded-xl p-4 mb-5 flex items-center gap-3">
-            <svg className="w-5 h-5 text-green-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <div className="bg-blue-900/20 border border-blue-700 rounded-xl p-4 mb-5 flex items-center gap-3">
+            <svg className="w-5 h-5 text-blue-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
             </svg>
-            <p className="text-green-300 text-sm font-medium">
+            <p className="text-blue-300 text-sm font-medium">
               Material uploaded successfully.
             </p>
           </div>
@@ -210,7 +211,7 @@ export default function Upload({ onSessionCreated }: UploadProps) {
           <div className="flex gap-3">
             <button
               onClick={handleGenerate}
-              className="px-6 py-2.5 bg-green-700 hover:bg-green-600 text-white rounded-lg font-semibold transition-colors"
+              className="px-6 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-semibold transition-colors"
             >
               Generate Study Guide
             </button>
