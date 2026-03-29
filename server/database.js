@@ -30,6 +30,7 @@ const Problem = sequelize.define('Problem', {
     type: DataTypes.ENUM('easy', 'medium', 'hard'),
     defaultValue: 'medium',
   },
+  reviewFlag: { type: DataTypes.BOOLEAN, defaultValue: false },
 }, { tableName: 'Problems', timestamps: false });
 
 const QuizAttempt = sequelize.define('QuizAttempt', {

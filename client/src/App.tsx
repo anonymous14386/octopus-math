@@ -4,7 +4,7 @@ import Upload from './components/Upload';
 import TopicList from './components/TopicList';
 import LessonViewer from './components/LessonViewer';
 import QuizMode from './components/QuizMode';
-import { getSessions, type StudySession, type Topic } from './api';
+import { getSessions, generateStudy, type StudySession, type Topic } from './api';
 
 type View = 'upload' | 'sessions' | 'study' | 'quiz';
 
@@ -165,6 +165,19 @@ export default function App() {
                             Quiz
                           </button>
                         </>
+                      )}
+                      {(session.status === 'failed' || session.status === 'pending') && (
+                        <button
+                          onClick={async () => {
+                            try {
+                              await generateStudy(session.id);
+                              loadSessions();
+                            } catch { /* ignore */ }
+                          }}
+                          className="px-3 py-1.5 text-sm bg-yellow-700 hover:bg-yellow-600 rounded font-medium transition-colors"
+                        >
+                          Retry
+                        </button>
                       )}
                     </div>
                   </div>

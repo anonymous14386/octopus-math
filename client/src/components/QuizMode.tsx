@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import katex from 'katex';
-import { getProblems, submitAttempt, type Problem } from '../api';
+import { getProblems, submitAttempt, toggleReview, type Problem } from '../api';
 
 interface QuizModeProps {
   sessionId: number;
@@ -41,6 +41,7 @@ export default function QuizMode({ sessionId, onDone }: QuizModeProps) {
   const [results, setResults] = useState<AttemptResult[]>([]);
   const [done, setDone] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [localReviewFlags, setLocalReviewFlags] = useState<Record<number, boolean>>({});
 
   useEffect(() => {
     let cancelled = false;
@@ -48,8 +49,13 @@ export default function QuizMode({ sessionId, onDone }: QuizModeProps) {
       try {
         const probs = await getProblems(sessionId);
         if (!cancelled) {
-          // Shuffle
-          const shuffled = [...probs].sort(() => Math.random() - 0.5);
+          // Weighted shuffle: review-flagged problems appear 3x more often
+          const deck: Problem[] = [];
+          for (const p of probs) {
+            deck.push(p);
+            if (p.reviewFlag) { deck.push(p); deck.push(p); }
+          }
+          const shuffled = deck.sort(() => Math.random() - 0.5);
           setProblems(shuffled);
         }
       } catch (err) {
@@ -294,14 +300,32 @@ export default function QuizMode({ sessionId, onDone }: QuizModeProps) {
           </div>
         )}
 
-        {/* Next button */}
+        {/* Review flag + Next */}
         {answerState !== 'unanswered' && (
-          <button
-            onClick={handleNext}
-            className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-semibold transition-colors"
-          >
-            {current + 1 >= problems.length ? 'See Results' : 'Next Question →'}
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={async () => {
+                const prob = problems[current];
+                const current_flag = localReviewFlags[prob.id] ?? prob.reviewFlag;
+                const result = await toggleReview(prob.id, !current_flag);
+                setLocalReviewFlags(f => ({ ...f, [prob.id]: result.reviewFlag }));
+              }}
+              className={`px-3 py-3 rounded-lg text-sm font-medium transition-colors border ${
+                (localReviewFlags[problems[current].id] ?? problems[current].reviewFlag)
+                  ? 'bg-yellow-900/40 border-yellow-700 text-yellow-400 hover:bg-yellow-900/60'
+                  : 'border-gray-700 text-gray-500 hover:text-gray-300 hover:border-gray-500'
+              }`}
+              title="Mark for review — this problem will appear more often"
+            >
+              {(localReviewFlags[problems[current].id] ?? problems[current].reviewFlag) ? '★ Review' : '☆ Review'}
+            </button>
+            <button
+              onClick={handleNext}
+              className="flex-1 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-semibold transition-colors"
+            >
+              {current + 1 >= problems.length ? 'See Results' : 'Next Question →'}
+            </button>
+          </div>
         )}
       </div>
     </div>

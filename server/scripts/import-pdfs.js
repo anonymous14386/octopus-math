@@ -28,14 +28,14 @@ if (fs.existsSync(envPath)) {
 
 const pdfParse = require('pdf-parse');
 const Anthropic = require('@anthropic-ai/sdk');
-const { sequelize, StudySession, Problem, initDb } = require('../database');
+const { sequelize, StudySession, initDb } = require('../database');
 
 const MODEL = process.env.MATH_MODEL || 'claude-sonnet-4-6';
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 const LESSON_PROMPT = `You are an expert math tutor. Given the following course material from a math class, analyze and generate structured study content.
 
-Return a JSON object with this exact structure:
+Return a JSON object with this exact structure (no practice problems — those are generated separately):
 {
   "subject": "detected subject name",
   "topics": [
@@ -47,21 +47,12 @@ Return a JSON object with this exact structure:
         "problem": "Example problem statement",
         "steps": ["Step 1: ...", "Step 2: ...", "Step 3: ..."],
         "answer": "Final answer"
-      },
-      "practiceProblems": [
-        {
-          "difficulty": "easy|medium|hard",
-          "question": "Problem statement",
-          "hint": "A helpful hint without giving away the answer",
-          "solution": "Complete step-by-step solution"
-        }
-      ]
+      }
     }
   ]
 }
 
 Use LaTeX notation for all math (e.g., $x^2 + 1$, \\\\frac{a}{b}).
-Generate 2-3 practice problems per topic (mix of difficulties).
 Course material:
 `;
 
@@ -128,22 +119,6 @@ async function importPdf(filePath) {
     const parsed = await generateStudy(session);
     const topics = parsed.topics || [];
     const subject = parsed.subject || 'Precalculus';
-
-    await Problem.destroy({ where: { sessionId: session.id } });
-    for (const topic of topics) {
-      if (topic.practiceProblems && Array.isArray(topic.practiceProblems)) {
-        for (const prob of topic.practiceProblems) {
-          await Problem.create({
-            sessionId: session.id,
-            topicName: topic.name,
-            question: prob.question,
-            hint: prob.hint || '',
-            solution: prob.solution || '',
-            difficulty: ['easy', 'medium', 'hard'].includes(prob.difficulty) ? prob.difficulty : 'medium',
-          });
-        }
-      }
-    }
 
     await session.update({ topics: JSON.stringify(topics), subject, status: 'ready' });
     console.log(`  DONE  ${topics.length} topic(s), session #${session.id}`);

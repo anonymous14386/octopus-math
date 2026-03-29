@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getSession, deleteSession, type StudySession, type Topic } from '../api';
+import { getSession, deleteSession, generateProblems, getProblemCounts, type StudySession, type Topic, type ProblemCounts } from '../api';
 
 interface TopicListProps {
   sessionId: number;
@@ -13,6 +13,8 @@ export default function TopicList({ sessionId, onSelectTopic, onStartQuiz, onSes
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState('');
   const [deleting, setDeleting] = useState(false);
+  const [problemCounts, setProblemCounts] = useState<Record<string, ProblemCounts>>({});
+  const [generating, setGenerating] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     let cancelled = false;
@@ -20,7 +22,17 @@ export default function TopicList({ sessionId, onSelectTopic, onStartQuiz, onSes
       setLoading(true);
       try {
         const s = await getSession(sessionId);
-        if (!cancelled) setSession(s);
+        if (!cancelled) {
+          setSession(s);
+          // Load problem counts for each topic
+          const counts: Record<string, ProblemCounts> = {};
+          await Promise.all((s.topics || []).map(async t => {
+            try {
+              counts[t.name] = await getProblemCounts(sessionId, t.name);
+            } catch { /* ignore */ }
+          }));
+          if (!cancelled) setProblemCounts(counts);
+        }
       } catch (err) {
         if (!cancelled) setErrorMsg(err instanceof Error ? err.message : 'Failed to load session.');
       } finally {
@@ -30,6 +42,17 @@ export default function TopicList({ sessionId, onSelectTopic, onStartQuiz, onSes
     load();
     return () => { cancelled = true; };
   }, [sessionId]);
+
+  async function handleGenerate(topicName: string) {
+    setGenerating(g => ({ ...g, [topicName]: true }));
+    try {
+      await generateProblems(sessionId, topicName);
+      const counts = await getProblemCounts(sessionId, topicName);
+      setProblemCounts(c => ({ ...c, [topicName]: counts }));
+    } catch { /* ignore */ } finally {
+      setGenerating(g => ({ ...g, [topicName]: false }));
+    }
+  }
 
   async function handleDelete() {
     if (!confirm('Delete this study session and all its problems?')) return;
@@ -99,21 +122,53 @@ export default function TopicList({ sessionId, onSelectTopic, onStartQuiz, onSes
           {topics.map((topic, idx) => (
             <div
               key={idx}
-              className="bg-gray-900 border border-gray-800 hover:border-gray-600 rounded-xl p-5 flex items-center justify-between transition-colors group cursor-pointer"
-              onClick={() => onSelectTopic(topic, session)}
+              className="bg-gray-900 border border-gray-800 hover:border-gray-600 rounded-xl p-5 transition-colors"
             >
-              <div>
-                <p className="font-semibold text-gray-100 group-hover:text-blue-300 transition-colors">
-                  {topic.name}
-                </p>
-                <div className="flex gap-4 mt-1 text-xs text-gray-500">
-                  <span>{topic.keyFormulas?.length ?? 0} formula(s)</span>
-                  <span>{topic.practiceProblems?.length ?? 0} practice problem(s)</span>
+              <div
+                className="flex items-center justify-between cursor-pointer group"
+                onClick={() => onSelectTopic(topic, session)}
+              >
+                <div>
+                  <p className="font-semibold text-gray-100 group-hover:text-blue-300 transition-colors">
+                    {topic.name}
+                  </p>
+                  <div className="flex gap-3 mt-1 text-xs text-gray-500">
+                    <span>{topic.keyFormulas?.length ?? 0} formula(s)</span>
+                    {problemCounts[topic.name] ? (
+                      <>
+                        <span className="text-green-500">{problemCounts[topic.name].easy}e</span>
+                        <span className="text-yellow-500">{problemCounts[topic.name].medium}m</span>
+                        <span className="text-red-500">{problemCounts[topic.name].hard}h</span>
+                        <span>/ 30 problems</span>
+                      </>
+                    ) : (
+                      <span>0 problems</span>
+                    )}
+                  </div>
                 </div>
+                <svg className="w-5 h-5 text-gray-600 group-hover:text-gray-400 transition-colors shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
               </div>
-              <svg className="w-5 h-5 text-gray-600 group-hover:text-gray-400 transition-colors shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
+              {(problemCounts[topic.name]?.total ?? 0) < 30 && (
+                <div className="mt-3 pt-3 border-t border-gray-800 flex items-center justify-between">
+                  <p className="text-xs text-gray-500">
+                    {30 - (problemCounts[topic.name]?.total ?? 0)} problems needed to reach bank of 30
+                  </p>
+                  <button
+                    onClick={() => handleGenerate(topic.name)}
+                    disabled={generating[topic.name]}
+                    className="text-xs px-3 py-1.5 bg-blue-700 hover:bg-blue-600 disabled:bg-gray-700 disabled:cursor-not-allowed text-white rounded font-medium transition-colors flex items-center gap-1.5"
+                  >
+                    {generating[topic.name] ? (
+                      <>
+                        <div className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin" />
+                        Generating…
+                      </>
+                    ) : 'Generate Problems'}
+                  </button>
+                </div>
+              )}
             </div>
           ))}
         </div>

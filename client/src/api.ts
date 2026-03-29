@@ -40,6 +40,14 @@ export interface Problem {
   hint: string;
   solution: string;
   difficulty: 'easy' | 'medium' | 'hard';
+  reviewFlag: boolean;
+}
+
+export interface ProblemCounts {
+  easy: number;
+  medium: number;
+  hard: number;
+  total: number;
 }
 
 export interface TopicStat {
@@ -136,4 +144,26 @@ export async function submitAttempt(sessionId: number, problemId: string, correc
 
 export async function getStats(sessionId: number): Promise<QuizStats> {
   return apiFetch(`/api/quiz/${sessionId}/stats`);
+}
+
+export async function generateProblems(
+  sessionId: number,
+  topicName: string,
+  targets?: { easy?: number; medium?: number; hard?: number },
+): Promise<{ created: number; message?: string }> {
+  return apiFetch(`/api/study/${sessionId}/topics/${encodeURIComponent(topicName)}/problems`, {
+    method: 'POST',
+    body: JSON.stringify({ targets }),
+  });
+}
+
+export async function getProblemCounts(sessionId: number, topicName: string): Promise<ProblemCounts> {
+  return apiFetch(`/api/study/${sessionId}/topics/${encodeURIComponent(topicName)}/problems/counts`);
+}
+
+export async function toggleReview(problemId: number, reviewFlag?: boolean): Promise<{ reviewFlag: boolean }> {
+  return apiFetch(`/api/quiz/problems/${problemId}/review`, {
+    method: 'PATCH',
+    body: JSON.stringify(reviewFlag != null ? { reviewFlag } : {}),
+  });
 }
