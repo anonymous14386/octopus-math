@@ -11,6 +11,7 @@ services:
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
       - MATH_MODEL=${MATH_MODEL:-claude-sonnet-4-6}
       - AUTH_SERVICE_URL=${AUTH_SERVICE_URL:-http://octopus-auth:3002}
+      - CORTEX_URL=${CORTEX_URL:-http://octopus-cortex:3010}
       - SESSION_SECRET=${SESSION_SECRET}
       - PORT=3011
       - NODE_ENV=production

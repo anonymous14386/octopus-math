@@ -2,12 +2,12 @@ const express = require('express');
 const session = require('express-session');
 const axios = require('axios');
 const path = require('path');
-const { Op } = require('sequelize');
-const { AllowedIP, initDb } = require('./database');
+const { initDb } = require('./database');
 
 const app = express();
 const PORT = process.env.PORT || 3011;
 const AUTH_URL = process.env.AUTH_SERVICE_URL || 'http://octopus-auth:3002';
+const CORTEX_URL = process.env.CORTEX_URL || 'http://octopus-cortex:3010';
 
 app.set('trust proxy', true);
 
@@ -24,10 +24,16 @@ app.use(session({
 async function tailscaleOnly(req, res, next) {
   const forwarded = req.headers['x-forwarded-for'];
   const ip = (forwarded ? forwarded.split(',')[0].trim() : req.ip || '').replace('::ffff:', '');
-  const now = new Date();
-  const entry = await AllowedIP.findOne({ where: { ip, expiresAt: { [Op.gt]: now } } });
-  if (!entry) return res.status(403).json({ error: 'Access denied. Request access via Discord.' });
-  next();
+  try {
+    const r = await axios.get(`${CORTEX_URL}/api/check-ip`, {
+      headers: { 'x-forwarded-for': ip },
+      timeout: 2000,
+    });
+    if (!r.data.allowed) return res.status(403).json({ error: 'Access denied. Request access via Discord.' });
+    next();
+  } catch {
+    return res.status(403).json({ error: 'IP check unavailable.' });
+  }
 }
 
 function requireLogin(req, res, next) {
@@ -37,7 +43,7 @@ function requireLogin(req, res, next) {
 }
 
 // Health endpoint — no auth
-app.get('/health', (req, res) => res.json({ ok: true, service: 'octopus-math' }));
+app.get('/health', (_req, res) => res.json({ ok: true, service: 'octopus-math' }));
 
 // Login page
 app.get('/login', tailscaleOnly, (req, res) => {
@@ -82,7 +88,7 @@ const clientDist = path.join(__dirname, '../client/dist');
 app.use(tailscaleOnly, express.static(clientDist));
 
 // SPA fallback — serve index.html for any non-API route
-app.get('*', tailscaleOnly, requireLogin, (req, res) => {
+app.get('*', tailscaleOnly, requireLogin, (_req, res) => {
   res.sendFile(path.join(clientDist, 'index.html'));
 });
 

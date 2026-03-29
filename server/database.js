@@ -7,13 +7,6 @@ const sequelize = new Sequelize({
   logging: false,
 });
 
-const AllowedIP = sequelize.define('AllowedIP', {
-  id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
-  ip: { type: DataTypes.STRING, allowNull: false },
-  label: { type: DataTypes.STRING },
-  expiresAt: { type: DataTypes.DATE, allowNull: false },
-}, { tableName: 'AllowedIPs', timestamps: false });
-
 const StudySession = sequelize.define('StudySession', {
   id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
   title: { type: DataTypes.STRING, allowNull: false },
@@ -51,4 +44,4 @@ async function initDb() {
   await sequelize.sync({ alter: true });
 }
 
-module.exports = { sequelize, AllowedIP, StudySession, Problem, QuizAttempt, initDb };
+module.exports = { sequelize, StudySession, Problem, QuizAttempt, initDb };
