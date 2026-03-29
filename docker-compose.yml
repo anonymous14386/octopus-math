@@ -1,0 +1,24 @@
+services:
+  octopus-math:
+    build: .
+    container_name: octopus-math
+    restart: unless-stopped
+    ports:
+      - "3011:3011"
+    volumes:
+      - math_data:/app/data
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - AUTH_SERVICE_URL=${AUTH_SERVICE_URL:-http://octopus-auth:3002}
+      - SESSION_SECRET=${SESSION_SECRET}
+      - PORT=3011
+      - NODE_ENV=production
+    networks:
+      - octopus_network
+
+volumes:
+  math_data:
+
+networks:
+  octopus_network:
+    external: true
