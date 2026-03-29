@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { uploadFiles, uploadText, generateStudy, type StudySession } from '../api';
 
@@ -16,13 +16,14 @@ export default function Upload({ onSessionCreated }: UploadProps) {
   const [uploadState, setUploadState] = useState<UploadState>('idle');
   const [errorMsg, setErrorMsg] = useState('');
   const [activeTab, setActiveTab] = useState<'file' | 'text'>('file');
+  const htmlInputRef = useRef<HTMLInputElement>(null);
 
-  const onDrop = useCallback(async (acceptedFiles: File[]) => {
-    if (acceptedFiles.length === 0) return;
+  async function handleFiles(files: File[]) {
+    if (files.length === 0) return;
     setUploadState('uploading');
     setErrorMsg('');
     try {
-      const result = await uploadFiles(acceptedFiles);
+      const result = await uploadFiles(files);
       setExtractedText(result.extractedText);
       setSessionId(result.sessionId);
       setUploadState('done');
@@ -30,14 +31,24 @@ export default function Upload({ onSessionCreated }: UploadProps) {
       setErrorMsg(err instanceof Error ? err.message : 'Upload failed.');
       setUploadState('error');
     }
+  }
+
+  const onDrop = useCallback((acceptedFiles: File[]) => {
+    handleFiles(acceptedFiles);
   }, []);
+
+  function handleHtmlInput(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? []);
+    if (files.length > 0) handleFiles(files);
+    // reset so same file can be re-selected
+    e.target.value = '';
+  }
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     accept: {
       'application/pdf': ['.pdf'],
       'text/plain': ['.txt'],
-      'text/html': ['.html', '.htm'],
       'image/jpeg': ['.jpg', '.jpeg'],
       'image/png': ['.png'],
     },
@@ -121,26 +132,52 @@ export default function Upload({ onSessionCreated }: UploadProps) {
       {uploadState === 'idle' || uploadState === 'error' ? (
         <>
           {activeTab === 'file' ? (
-            <div
-              {...getRootProps()}
-              className={`border-2 border-dashed rounded-xl p-12 text-center cursor-pointer transition-colors ${
-                isDragActive
-                  ? 'border-blue-500 bg-blue-500/10'
-                  : 'border-gray-700 hover:border-gray-500 bg-gray-900/50'
-              }`}
-            >
-              <input {...getInputProps()} />
-              <svg className="w-12 h-12 mx-auto mb-3 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-              </svg>
-              {isDragActive ? (
-                <p className="text-blue-400 font-medium">Drop files here…</p>
-              ) : (
-                <>
-                  <p className="text-gray-300 font-medium">Drag & drop files here</p>
-                  <p className="text-gray-500 text-sm mt-1">or click to select — PDF, TXT, HTML, JPG, PNG</p>
-                </>
-              )}
+            <div className="space-y-3">
+              {/* Standard file dropzone */}
+              <div
+                {...getRootProps()}
+                className={`border-2 border-dashed rounded-xl p-10 text-center cursor-pointer transition-colors ${
+                  isDragActive
+                    ? 'border-blue-500 bg-blue-500/10'
+                    : 'border-gray-700 hover:border-gray-500 bg-gray-900/50'
+                }`}
+              >
+                <input {...getInputProps()} />
+                <svg className="w-10 h-10 mx-auto mb-3 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                </svg>
+                {isDragActive ? (
+                  <p className="text-blue-400 font-medium">Drop files here…</p>
+                ) : (
+                  <>
+                    <p className="text-gray-300 font-medium">Drag & drop files here</p>
+                    <p className="text-gray-500 text-sm mt-1">or click to select — PDF, TXT, JPG, PNG</p>
+                  </>
+                )}
+              </div>
+
+              {/* WebAssign HTML — separate because browsers block HTML drag-drop */}
+              <div className="bg-gray-900 border border-gray-800 rounded-xl px-5 py-4 flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-sm font-medium text-gray-200">WebAssign saved page</p>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    Save your quiz as <span className="text-gray-400">Webpage, Complete</span> — upload only the <span className="text-gray-400">.html</span> file
+                  </p>
+                </div>
+                <input
+                  ref={htmlInputRef}
+                  type="file"
+                  accept=".html,.htm"
+                  className="hidden"
+                  onChange={handleHtmlInput}
+                />
+                <button
+                  onClick={() => htmlInputRef.current?.click()}
+                  className="shrink-0 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-gray-200 text-sm font-medium rounded-lg transition-colors"
+                >
+                  Browse…
+                </button>
+              </div>
             </div>
           ) : (
             <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
