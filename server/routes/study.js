@@ -49,17 +49,29 @@ router.post('/:sessionId/generate', async (req, res) => {
   try {
     await session.update({ status: 'processing' });
 
+    // Trim input to ~12k chars to stay well within context limits
+    const inputText = session.rawText.length > 12000
+      ? session.rawText.slice(0, 12000) + '\n...[truncated]'
+      : session.rawText;
+
     const message = await anthropic.messages.create({
       model: MODEL,
-      max_tokens: 4096,
-      messages: [{ role: 'user', content: LESSON_PROMPT + session.rawText }],
+      max_tokens: 8192,
+      messages: [{ role: 'user', content: LESSON_PROMPT + inputText }],
     });
 
     const raw = message.content[0].text;
-    // Extract JSON object from response (Claude may wrap it in markdown)
-    const jsonMatch = raw.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error('No JSON found in model response');
-    const parsed = JSON.parse(jsonMatch[0]);
+    // Handle markdown code block or bare JSON
+    let jsonStr = raw;
+    const codeBlock = raw.match(/```(?:json)?\s*([\s\S]*?)```/);
+    if (codeBlock) {
+      jsonStr = codeBlock[1].trim();
+    } else {
+      const objMatch = raw.match(/\{[\s\S]*\}/);
+      if (!objMatch) throw new Error('No JSON found in model response');
+      jsonStr = objMatch[0];
+    }
+    const parsed = JSON.parse(jsonStr);
 
     const topics = parsed.topics || [];
     const subject = parsed.subject || 'Precalculus';
