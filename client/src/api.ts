@@ -1,5 +1,13 @@
 // ---- Types ----
 
+export interface MathClass {
+  id: number;
+  name: string;
+  subject: string;
+  description: string | null;
+  createdAt: string;
+}
+
 export interface PracticeProblems {
   difficulty: 'easy' | 'medium' | 'hard';
   question: string;
@@ -23,6 +31,7 @@ export interface Topic {
 
 export interface StudySession {
   id: number;
+  classId: number | null;
   title: string;
   subject: string;
   status: 'pending' | 'processing' | 'ready' | 'failed';
@@ -88,11 +97,10 @@ async function apiFetch<T>(url: string, options?: RequestInit): Promise<T> {
 
 // ---- API Functions ----
 
-export async function uploadFiles(files: File[]): Promise<{ sessionId: number; extractedText: string }> {
+export async function uploadFiles(files: File[], classId?: number | null): Promise<{ sessionId: number; extractedText: string }> {
   const formData = new FormData();
-  for (const file of files) {
-    formData.append('files', file);
-  }
+  for (const file of files) formData.append('files', file);
+  if (classId != null) formData.append('classId', String(classId));
 
   const res = await fetch('/api/upload', {
     method: 'POST',
@@ -108,10 +116,10 @@ export async function uploadFiles(files: File[]): Promise<{ sessionId: number; e
   return res.json();
 }
 
-export async function uploadText(text: string, title: string): Promise<{ sessionId: number }> {
+export async function uploadText(text: string, title: string, classId?: number | null): Promise<{ sessionId: number }> {
   return apiFetch('/api/upload/text', {
     method: 'POST',
-    body: JSON.stringify({ text, title }),
+    body: JSON.stringify({ text, title, classId }),
   });
 }
 
@@ -123,8 +131,31 @@ export async function getSession(sessionId: number): Promise<StudySession> {
   return apiFetch(`/api/study/${sessionId}`);
 }
 
-export async function getSessions(): Promise<StudySession[]> {
-  return apiFetch('/api/study');
+export async function getSessions(classId?: number | null): Promise<StudySession[]> {
+  const url = classId != null ? `/api/study?classId=${classId}` : '/api/study';
+  return apiFetch(url);
+}
+
+export async function getClasses(): Promise<MathClass[]> {
+  return apiFetch('/api/classes');
+}
+
+export async function createClass(name: string, subject: string, description?: string): Promise<MathClass> {
+  return apiFetch('/api/classes', {
+    method: 'POST',
+    body: JSON.stringify({ name, subject, description }),
+  });
+}
+
+export async function deleteClass(id: number): Promise<void> {
+  await apiFetch(`/api/classes/${id}`, { method: 'DELETE' });
+}
+
+export async function updateClass(id: number, name: string, subject: string): Promise<MathClass> {
+  return apiFetch(`/api/classes/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify({ name, subject }),
+  });
 }
 
 export async function deleteSession(sessionId: number): Promise<void> {

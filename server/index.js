@@ -71,10 +71,12 @@ app.get('/api/me', requireLogin, (req, res) => {
 const uploadRouter = require('./routes/upload');
 const studyRouter = require('./routes/study');
 const quizRouter = require('./routes/quiz');
+const classesRouter = require('./routes/classes');
 
 app.use('/api/upload', requireLogin, uploadRouter);
 app.use('/api/study', requireLogin, studyRouter);
 app.use('/api/quiz', requireLogin, quizRouter);
+app.use('/api/classes', requireLogin, classesRouter);
 
 // Serve React client in production
 const clientDist = path.join(__dirname, '../client/dist');

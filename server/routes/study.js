@@ -221,9 +221,11 @@ router.get('/:sessionId', async (req, res) => {
   return res.json(data);
 });
 
-// GET /api/study
-router.get('/', async (_req, res) => {
-  const sessions = await StudySession.findAll({ order: [['createdAt', 'DESC']] });
+// GET /api/study?classId=X
+router.get('/', async (req, res) => {
+  const where = {};
+  if (req.query.classId) where.classId = parseInt(req.query.classId);
+  const sessions = await StudySession.findAll({ where, order: [['createdAt', 'DESC']] });
   const result = sessions.map(s => {
     const data = s.toJSON();
     if (data.topics) {

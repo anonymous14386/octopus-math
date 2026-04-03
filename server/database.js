@@ -7,8 +7,16 @@ const sequelize = new Sequelize({
   logging: false,
 });
 
+const MathClass = sequelize.define('MathClass', {
+  id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+  name: { type: DataTypes.STRING, allowNull: false },
+  subject: { type: DataTypes.STRING, defaultValue: 'Mathematics' },
+  description: { type: DataTypes.TEXT },
+}, { tableName: 'MathClasses', timestamps: true });
+
 const StudySession = sequelize.define('StudySession', {
   id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+  classId: { type: DataTypes.INTEGER, allowNull: true },
   title: { type: DataTypes.STRING, allowNull: false },
   subject: { type: DataTypes.STRING, defaultValue: 'Precalculus' },
   status: {
@@ -45,4 +53,4 @@ async function initDb() {
   await sequelize.sync({ alter: true });
 }
 
-module.exports = { sequelize, StudySession, Problem, QuizAttempt, initDb };
+module.exports = { sequelize, MathClass, StudySession, Problem, QuizAttempt, initDb };

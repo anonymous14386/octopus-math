@@ -4,7 +4,7 @@ import Upload from './components/Upload';
 import TopicList from './components/TopicList';
 import LessonViewer from './components/LessonViewer';
 import QuizMode from './components/QuizMode';
-import { getSessions, generateStudy, type StudySession, type Topic } from './api';
+import { getSessions, generateStudy, getClasses, createClass, deleteClass, type StudySession, type Topic, type MathClass } from './api';
 
 type View = 'upload' | 'sessions' | 'study' | 'quiz';
 
@@ -18,6 +18,8 @@ interface AppState {
   loading: boolean;
 }
 
+const CLASS_KEY = 'octopus_math_class';
+
 export default function App() {
   const [state, setState] = useState<AppState>({
     authed: false,
@@ -26,14 +28,20 @@ export default function App() {
     loading: true,
   });
 
+  const [classes, setClasses] = useState<MathClass[]>([]);
+  const [activeClassId, setActiveClassId] = useState<number | null>(() => {
+    const stored = localStorage.getItem(CLASS_KEY);
+    return stored ? parseInt(stored) : null;
+  });
+  const [showNewClass, setShowNewClass] = useState(false);
+  const [newClassName, setNewClassName] = useState('');
+  const [newClassSubject, setNewClassSubject] = useState('');
+
   const checkAuth = useCallback(async () => {
     try {
       const res = await fetch('/api/me');
-      if (res.ok) {
-        setState(s => ({ ...s, authed: true, loading: false }));
-      } else {
-        setState(s => ({ ...s, authed: false, loading: false }));
-      }
+      if (res.ok) setState(s => ({ ...s, authed: true, loading: false }));
+      else setState(s => ({ ...s, authed: false, loading: false }));
     } catch {
       setState(s => ({ ...s, authed: false, loading: false }));
     }
@@ -41,16 +49,51 @@ export default function App() {
 
   useEffect(() => { checkAuth(); }, [checkAuth]);
 
-  const loadSessions = useCallback(async () => {
+  const loadClasses = useCallback(async () => {
+    try { setClasses(await getClasses()); } catch { /* ignore */ }
+  }, []);
+
+  const loadSessions = useCallback(async (classId: number | null) => {
     try {
-      const sessions = await getSessions();
+      const sessions = await getSessions(classId);
       setState(s => ({ ...s, sessions }));
     } catch { /* ignore */ }
   }, []);
 
   useEffect(() => {
-    if (state.authed) loadSessions();
-  }, [state.authed, loadSessions]);
+    if (state.authed) {
+      loadClasses();
+      loadSessions(activeClassId);
+    }
+  }, [state.authed, loadClasses, loadSessions, activeClassId]);
+
+  function switchClass(id: number | null) {
+    setActiveClassId(id);
+    if (id == null) localStorage.removeItem(CLASS_KEY);
+    else localStorage.setItem(CLASS_KEY, String(id));
+    setState(s => ({ ...s, view: 'sessions' }));
+  }
+
+  async function handleCreateClass() {
+    if (!newClassName.trim()) return;
+    try {
+      const c = await createClass(newClassName.trim(), newClassSubject.trim() || 'Mathematics');
+      setClasses(cs => [...cs, c]);
+      switchClass(c.id);
+      setNewClassName('');
+      setNewClassSubject('');
+      setShowNewClass(false);
+    } catch { /* ignore */ }
+  }
+
+  async function handleDeleteClass(id: number) {
+    if (!confirm('Delete this class? Sessions will be unlinked but not deleted.')) return;
+    try {
+      await deleteClass(id);
+      setClasses(cs => cs.filter(c => c.id !== id));
+      if (activeClassId === id) switchClass(null);
+    } catch { /* ignore */ }
+  }
 
   if (state.loading) {
     return (
@@ -66,7 +109,7 @@ export default function App() {
 
   function navigate(view: View, sessionId?: number, activeTopic?: Topic, activeSession?: StudySession) {
     setState(s => ({ ...s, view, sessionId, activeTopic, activeSession }));
-    if (view === 'sessions') loadSessions();
+    if (view === 'sessions') loadSessions(activeClassId);
   }
 
   const navItems: { id: View; label: string }[] = [
@@ -74,11 +117,63 @@ export default function App() {
     { id: 'sessions', label: 'My Sessions' },
   ];
 
+  const activeClass = classes.find(c => c.id === activeClassId) ?? null;
+
   return (
     <div className="min-h-screen bg-gray-950 text-gray-200">
-      {/* Nav bar */}
-      <nav className="bg-gray-900 border-b border-gray-800 px-6 py-3 flex items-center gap-6">
+      <nav className="bg-gray-900 border-b border-gray-800 px-6 py-3 flex items-center gap-4 flex-wrap">
         <span className="font-bold text-blue-400 text-lg tracking-wide">🧮 Octopus Math</span>
+
+        {/* Class selector */}
+        <div className="relative flex items-center gap-1">
+          <select
+            value={activeClassId ?? ''}
+            onChange={e => switchClass(e.target.value === '' ? null : parseInt(e.target.value))}
+            className="bg-gray-800 border border-gray-700 text-gray-200 text-sm rounded px-2 py-1 outline-none focus:border-blue-500 cursor-pointer"
+          >
+            <option value="">All Classes</option>
+            {classes.map(c => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+          {activeClass && (
+            <button
+              onClick={() => handleDeleteClass(activeClass.id)}
+              className="text-gray-600 hover:text-red-400 text-xs transition-colors"
+              title="Delete this class"
+            >✕</button>
+          )}
+          <button
+            onClick={() => setShowNewClass(v => !v)}
+            className="text-xs px-2 py-1 bg-gray-800 border border-gray-700 hover:border-blue-500 text-gray-400 hover:text-blue-400 rounded transition-colors"
+            title="New class"
+          >+ Class</button>
+        </div>
+
+        {/* New class inline form */}
+        {showNewClass && (
+          <div className="flex items-center gap-2 bg-gray-800 border border-gray-700 rounded px-3 py-1.5">
+            <input
+              autoFocus
+              placeholder="Class name"
+              value={newClassName}
+              onChange={e => setNewClassName(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') handleCreateClass(); if (e.key === 'Escape') setShowNewClass(false); }}
+              className="bg-transparent text-sm text-gray-200 outline-none placeholder:text-gray-600 w-36"
+            />
+            <input
+              placeholder="Subject (optional)"
+              value={newClassSubject}
+              onChange={e => setNewClassSubject(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') handleCreateClass(); if (e.key === 'Escape') setShowNewClass(false); }}
+              className="bg-transparent text-sm text-gray-200 outline-none placeholder:text-gray-600 w-36"
+            />
+            <button onClick={handleCreateClass} className="text-xs text-blue-400 hover:text-blue-300 font-medium">Create</button>
+            <button onClick={() => setShowNewClass(false)} className="text-xs text-gray-600 hover:text-gray-400">Cancel</button>
+          </div>
+        )}
+
+        {/* View tabs */}
         <div className="flex gap-1">
           {navItems.map(item => (
             <button
@@ -94,6 +189,7 @@ export default function App() {
             </button>
           ))}
         </div>
+
         <div className="ml-auto">
           <button
             onClick={async () => {
@@ -107,12 +203,13 @@ export default function App() {
         </div>
       </nav>
 
-      {/* Main content */}
       <main className="max-w-5xl mx-auto px-4 py-8">
         {state.view === 'upload' && (
           <Upload
+            classes={classes}
+            activeClassId={activeClassId}
             onSessionCreated={(sessionId, session) => {
-              loadSessions();
+              loadSessions(activeClassId);
               navigate('study', sessionId, undefined, session);
             }}
           />
@@ -120,68 +217,61 @@ export default function App() {
 
         {state.view === 'sessions' && (
           <div>
-            <h2 className="text-2xl font-bold mb-6 text-gray-100">My Study Sessions</h2>
+            <h2 className="text-2xl font-bold mb-6 text-gray-100">
+              {activeClass ? activeClass.name : 'All Sessions'}
+            </h2>
             {state.sessions.length === 0 ? (
               <div className="text-gray-500 text-center py-16">
                 No sessions yet.{' '}
-                <button
-                  onClick={() => navigate('upload')}
-                  className="text-blue-400 hover:underline"
-                >
+                <button onClick={() => navigate('upload')} className="text-blue-400 hover:underline">
                   Upload some material to get started.
                 </button>
               </div>
             ) : (
               <div className="grid gap-4">
-                {state.sessions.map(session => (
-                  <div
-                    key={session.id}
-                    className="bg-gray-900 border border-gray-800 rounded-xl p-5 flex items-center justify-between"
-                  >
-                    <div>
-                      <p className="font-semibold text-gray-100">{session.title}</p>
-                      <p className="text-sm text-gray-500 mt-0.5">
-                        {session.subject} &middot; {session.topics.length} topic(s) &middot;{' '}
-                        <span className={`capitalize ${
-                          session.status === 'ready' ? 'text-green-400' :
-                          session.status === 'failed' ? 'text-red-400' :
-                          session.status === 'processing' ? 'text-yellow-400' : 'text-gray-400'
-                        }`}>{session.status}</span>
-                      </p>
-                    </div>
-                    <div className="flex gap-2">
-                      {session.status === 'ready' && (
-                        <>
+                {state.sessions.map(session => {
+                  const sessionClass = classes.find(c => c.id === session.classId);
+                  return (
+                    <div key={session.id} className="bg-gray-900 border border-gray-800 rounded-xl p-5 flex items-center justify-between">
+                      <div>
+                        <p className="font-semibold text-gray-100">{session.title}</p>
+                        <p className="text-sm text-gray-500 mt-0.5">
+                          {session.subject} &middot; {session.topics.length} topic(s) &middot;{' '}
+                          <span className={`capitalize ${
+                            session.status === 'ready' ? 'text-green-400' :
+                            session.status === 'failed' ? 'text-red-400' :
+                            session.status === 'processing' ? 'text-yellow-400' : 'text-gray-400'
+                          }`}>{session.status}</span>
+                          {sessionClass && activeClassId == null && (
+                            <span className="ml-2 text-blue-400 text-xs">{sessionClass.name}</span>
+                          )}
+                        </p>
+                      </div>
+                      <div className="flex gap-2">
+                        {session.status === 'ready' && (
+                          <>
+                            <button
+                              onClick={() => navigate('study', session.id, undefined, session)}
+                              className="px-3 py-1.5 text-sm bg-blue-600 hover:bg-blue-500 rounded font-medium transition-colors"
+                            >Study</button>
+                            <button
+                              onClick={() => navigate('quiz', session.id, undefined, session)}
+                              className="px-3 py-1.5 text-sm bg-indigo-600 hover:bg-indigo-500 rounded font-medium transition-colors"
+                            >Quiz</button>
+                          </>
+                        )}
+                        {(session.status === 'failed' || session.status === 'pending') && (
                           <button
-                            onClick={() => navigate('study', session.id, undefined, session)}
-                            className="px-3 py-1.5 text-sm bg-blue-600 hover:bg-blue-500 rounded font-medium transition-colors"
-                          >
-                            Study
-                          </button>
-                          <button
-                            onClick={() => navigate('quiz', session.id, undefined, session)}
-                            className="px-3 py-1.5 text-sm bg-indigo-600 hover:bg-indigo-500 rounded font-medium transition-colors"
-                          >
-                            Quiz
-                          </button>
-                        </>
-                      )}
-                      {(session.status === 'failed' || session.status === 'pending') && (
-                        <button
-                          onClick={async () => {
-                            try {
-                              await generateStudy(session.id);
-                              loadSessions();
-                            } catch { /* ignore */ }
-                          }}
-                          className="px-3 py-1.5 text-sm bg-yellow-700 hover:bg-yellow-600 rounded font-medium transition-colors"
-                        >
-                          Retry
-                        </button>
-                      )}
+                            onClick={async () => {
+                              try { await generateStudy(session.id); loadSessions(activeClassId); } catch { /* ignore */ }
+                            }}
+                            className="px-3 py-1.5 text-sm bg-yellow-700 hover:bg-yellow-600 rounded font-medium transition-colors"
+                          >Retry</button>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -193,9 +283,7 @@ export default function App() {
               <button
                 onClick={() => navigate('study', state.sessionId, undefined, state.activeSession)}
                 className="mb-6 text-sm text-blue-400 hover:underline flex items-center gap-1"
-              >
-                ← Back to topics
-              </button>
+              >← Back to topics</button>
               <LessonViewer topic={state.activeTopic} />
             </div>
           ) : (
@@ -209,10 +297,7 @@ export default function App() {
         )}
 
         {state.view === 'quiz' && state.sessionId != null && (
-          <QuizMode
-            sessionId={state.sessionId}
-            onDone={() => navigate('sessions')}
-          />
+          <QuizMode sessionId={state.sessionId} onDone={() => navigate('sessions')} />
         )}
       </main>
     </div>

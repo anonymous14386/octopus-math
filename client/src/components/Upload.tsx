@@ -1,14 +1,16 @@
 import { useState, useCallback, useRef } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { uploadFiles, uploadText, generateStudy, type StudySession } from '../api';
+import { uploadFiles, uploadText, generateStudy, type StudySession, type MathClass } from '../api';
 
 interface UploadProps {
+  classes: MathClass[];
+  activeClassId: number | null;
   onSessionCreated: (sessionId: number, session: StudySession) => void;
 }
 
 type UploadState = 'idle' | 'uploading' | 'generating' | 'done' | 'error';
 
-export default function Upload({ onSessionCreated }: UploadProps) {
+export default function Upload({ classes, activeClassId, onSessionCreated }: UploadProps) {
   const [pastedText, setPastedText] = useState('');
   const [pastedTitle, setPastedTitle] = useState('');
   const [extractedText, setExtractedText] = useState('');
@@ -16,6 +18,7 @@ export default function Upload({ onSessionCreated }: UploadProps) {
   const [uploadState, setUploadState] = useState<UploadState>('idle');
   const [errorMsg, setErrorMsg] = useState('');
   const [activeTab, setActiveTab] = useState<'file' | 'text'>('file');
+  const [selectedClassId, setSelectedClassId] = useState<number | null>(activeClassId);
   const htmlInputRef = useRef<HTMLInputElement>(null);
 
   async function handleFiles(files: File[]) {
@@ -23,7 +26,7 @@ export default function Upload({ onSessionCreated }: UploadProps) {
     setUploadState('uploading');
     setErrorMsg('');
     try {
-      const result = await uploadFiles(files);
+      const result = await uploadFiles(files, selectedClassId);
       setExtractedText(result.extractedText);
       setSessionId(result.sessionId);
       setUploadState('done');
@@ -60,7 +63,7 @@ export default function Upload({ onSessionCreated }: UploadProps) {
     setUploadState('uploading');
     setErrorMsg('');
     try {
-      const result = await uploadText(pastedText.trim(), pastedTitle || 'Pasted Material');
+      const result = await uploadText(pastedText.trim(), pastedTitle || 'Pasted Material', selectedClassId);
       setSessionId(result.sessionId);
       setExtractedText(pastedText.trim());
       setUploadState('done');
@@ -78,6 +81,7 @@ export default function Upload({ onSessionCreated }: UploadProps) {
       const result = await generateStudy(sessionId);
       const session: StudySession = {
         id: sessionId,
+        classId: selectedClassId,
         title: pastedTitle || 'Study Session',
         subject: 'Precalculus',
         status: 'ready',
@@ -105,9 +109,26 @@ export default function Upload({ onSessionCreated }: UploadProps) {
   return (
     <div className="max-w-2xl mx-auto">
       <h2 className="text-2xl font-bold mb-2 text-gray-100">Upload Study Material</h2>
-      <p className="text-gray-500 mb-6 text-sm">
+      <p className="text-gray-500 mb-4 text-sm">
         Upload PDFs, text files, or paste your notes. The AI will generate a structured study guide.
       </p>
+
+      {/* Class selector */}
+      {classes.length > 0 && (
+        <div className="mb-5 flex items-center gap-3">
+          <label className="text-sm text-gray-400 shrink-0">Add to class:</label>
+          <select
+            value={selectedClassId ?? ''}
+            onChange={e => setSelectedClassId(e.target.value === '' ? null : parseInt(e.target.value))}
+            className="bg-gray-900 border border-gray-800 text-gray-200 text-sm rounded px-3 py-1.5 outline-none focus:border-blue-500"
+          >
+            <option value="">No class</option>
+            {classes.map(c => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="flex gap-1 mb-5 bg-gray-900 border border-gray-800 rounded-lg p-1 w-fit">

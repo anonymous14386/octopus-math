@@ -98,9 +98,11 @@ router.post('/', upload.array('files', 10), async (req, res) => {
 
     const firstFile = req.files[0];
     const title = req.body.title || suggestedTitle || firstFile.originalname.replace(/\.[^.]+$/, '');
+    const classId = req.body.classId ? parseInt(req.body.classId) : null;
 
     const session = await StudySession.create({
       title,
+      classId,
       rawText: extractedText,
       status: 'pending',
     });
@@ -120,8 +122,10 @@ router.post('/text', express.json(), async (req, res) => {
       return res.status(400).json({ error: 'No text provided.' });
     }
 
+    const classId = req.body.classId ? parseInt(req.body.classId) : null;
     const session = await StudySession.create({
       title: title || 'Pasted Material',
+      classId,
       rawText: text.trim(),
       status: 'pending',
     });
